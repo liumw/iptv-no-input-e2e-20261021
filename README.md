@@ -108,3 +108,5 @@ docs/              完整部署说明
 ```
 
 公开问题请发 [Issue](https://github.com/liumw/iptv-source-cloudflare/issues)。不要附上 `.dev.vars`、初始化 SQL、数据库备份、会话 cookie 或带令牌的完整订阅地址。
+
+自动密钥实测：通过官方一键部署完成初始化，重新构建用于验证既有会话与密码保留。
