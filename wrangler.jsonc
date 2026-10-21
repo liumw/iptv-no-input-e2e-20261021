@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "iptv-no-input-e2e-20261021",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-20",
+  "assets": {
+    "directory": "./.generated/public",
+    "binding": "ASSETS",
+    "run_worker_first": true,
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "iptv-no-input-db-20261021",
+      "database_id": "139655c6-b27b-4ae9-b1f2-4167a8a8e574",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "vars": {
+    "APP_NAME": "IPTV Source Manager",
+    "ENABLE_PLAY_PROXY": "false",
+  },
+  "triggers": { "crons": ["17 19 * * *"] },
+  "observability": { "enabled": true },
+}
