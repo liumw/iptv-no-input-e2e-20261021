@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import { build } from 'esbuild';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { hashPassword } from '../src/security.ts';
+import { applyChannelNumberMigration } from './schema.ts';
 
 test('reimporting deleted feeds reuses line IDs and preserves manual channel and line settings', async () => {
   await build({
@@ -38,6 +39,7 @@ test('reimporting deleted feeds reuses line IDs and preserves manual channel and
         .filter((s) => s.trim())
         .map((s) => db.prepare(s)),
     );
+    await applyChannelNumberMigration(db);
     await db
       .prepare('INSERT INTO admin_users(username,password_hash,must_change_password) VALUES(?,?,0)')
       .bind('testadmin', await hashPassword('reimport-test-password'))
@@ -126,6 +128,13 @@ test('reimporting deleted feeds reuses line IDs and preserves manual channel and
       adult: '1',
     });
     await post(`/_admin/streams/${streamID}/default`);
+    await post(`/_admin/streams/${originalStreams[2].id}/assign`, {
+      target_channel_id: String(channelID),
+    });
+    await db
+      .prepare('UPDATE channels SET enabled=0,reviewed=1,logo=NULL,chno=89,notes=? WHERE id=?')
+      .bind('手动停用的空频道', originalStreams[2].channel_id)
+      .run();
     await db.exec(`INSERT INTO profiles(id,slug,name) VALUES(1,'test','测试');
       INSERT INTO profile_channels(profile_id,channel_id,chno_override,sort_override,include) VALUES(1,${channelID},99,4,1);
       INSERT INTO channel_aliases(channel_id,alias,alias_norm) VALUES(${channelID},'手动别名','manual-alias');
@@ -150,11 +159,20 @@ test('reimporting deleted feeds reuses line IDs and preserves manual channel and
     const lineSnapshot = await rows(
       `SELECT id,channel_id,fingerprint,network,carrier,region,network_manual,carrier_manual,region_manual,priority,is_default,excluded,adult,score,fail_count,first_seen_at FROM streams WHERE id=${streamID}`,
     );
+    const associations = await rows(
+      'SELECT id,channel_id,fingerprint FROM streams WHERE source_id NOT IN (100,101) ORDER BY id',
+    );
     const guards = await rows('SELECT * FROM streams WHERE source_id IN (100,101) ORDER BY id');
     const assertPreserved = async () => {
       assert.deepEqual(await rows('SELECT * FROM channels ORDER BY id'), channelSnapshot);
       assert.deepEqual(await rows('SELECT * FROM channel_aliases'), aliases);
       assert.deepEqual(await rows('SELECT * FROM profile_channels'), pins);
+      assert.deepEqual(
+        await rows(
+          'SELECT id,channel_id,fingerprint FROM streams WHERE source_id NOT IN (100,101) ORDER BY id',
+        ),
+        associations,
+      );
       assert.deepEqual(
         await rows(
           `SELECT id,channel_id,fingerprint,network,carrier,region,network_manual,carrier_manual,region_manual,priority,is_default,excluded,adult,score,fail_count,first_seen_at FROM streams WHERE id=${streamID}`,
